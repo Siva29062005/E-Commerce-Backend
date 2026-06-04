@@ -1,0 +1,1 @@
+# VIKINGS FastAPI application
