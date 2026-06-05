@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import require_admin
 from app.models import Product, User
 from app.schemas import ProductCreate, ProductUpdate
+from app.services.cloudinary import upload_product_image
 from app.services.products import product_to_dict, query_products
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -56,6 +57,22 @@ def create_product(body: ProductCreate, _admin: User = Depends(require_admin), d
     db.commit()
     db.refresh(product)
     return product_to_dict(product)
+
+
+@router.post("/upload-image")
+async def upload_product_image_endpoint(
+    file: UploadFile = File(...),
+    _admin: User = Depends(require_admin),
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+    try:
+        url = await upload_product_image(file)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return {"url": url}
 
 
 @router.put("/{product_id}")
